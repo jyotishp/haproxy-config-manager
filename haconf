@@ -81,10 +81,7 @@ def rebuildConf():
 			new_conf.write(header)
 		new_conf.write('\n')
 		### ACL RULES pending
-		new_conf.write('frontend iiit.ac.in\n')
-		new_conf.write('    bind *:80\n')
-		new_conf.write('    bind *:443 ssl crt /etc/pki/tls/private/cert.pem\n')
-		new_conf.write('    redirect scheme https code 301 if !{ ssl_fc }\n\n')
+
 		for domain in domains:
 			new_conf.write('    acl host_' + domain + ' hdr(host) ' + domain + '\n')
 
