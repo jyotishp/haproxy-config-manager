@@ -1,0 +1,153 @@
+#!/usr/bin/env python
+
+# Import modules here
+from __future__ import print_function
+import os
+import sys
+
+# Colored output on terminal for fun ;)
+BLUE = '\033[94m'
+GREEN = '\033[92m'
+ORANGE = '\033[93m'
+RED = '\033[91m'
+ENDC = '\033[0m'
+BOLD = '\033[1m'
+
+# Path to haproxy conf files
+base_dir = './conf.d/'
+
+#### Adds a domain entry to haproxy config ####
+# Create a file with the name of domain in conf.d/domains
+# Put the IP(s) of the server in this file
+# Rebuild haproxy config
+# Reload haproxy
+# domain string - Name of domain to add
+# port string - Port to connect to for reverse proxy
+# ips array(string) - List of IPs that belong to the domain
+def addDomain(domain, port, ips):
+	domain_conf_path = base_dir + 'domains/' + domain
+	with open(domain_conf_path, 'w+') as domain_conf:
+		for ip in ips:
+			domain_conf.write(ip + ':' + port + '\n')
+	print('Domain conf created at ' + BLUE + domain_conf_path + ENDC)
+	rebuildConf()
+
+#### List all the domains in haproxy config ####
+# Read the files in conf.d/domains
+# Output the contents of each file
+def listDomains():
+	domains = os.listdir(base_dir + 'domains')
+	for domain in domains:
+		with open(base_dir + 'domains/' + domain, 'r') as domain_conf:
+			ips = domain_conf.read()
+		print(BLUE + domain + ENDC)
+		print(ips)
+
+#### Deletes a domain entry from haproxy config ####
+# Delete the corresponding domain file in conf.d/domains
+# Rebuild haproxy config
+# Reload haproxy
+# domain string - Name of domain to delete
+def destroyDomain(domain):
+	os.remove(base_dir + 'domains/' + domain)
+	print(GREEN + 'Removed ' + domain + ' from haproxy' + ENDC)
+	rebuildConf()
+
+def addAclRule():
+	pass
+
+def listAclRules():
+	pass
+
+def destroyAclRule():
+	pass
+
+#### Throws an error message and exits ####
+def throwError(msg = 'Usage: ' + GREEN + 'haconf'+ ORANGE +' [domain|acl] [add|del|list] [domain_name|rule] [port]' + ENDC +' [IPs]'):
+	print(msg)
+	sys.exit(1)
+
+#### Regenerate haproxy conf ####
+# Generate a new conf at haproxy.cfg.new
+# Move current conf to haproxy.cfg.bak
+# Move new conf to haproxy.cfg
+# Reload systemd service
+def rebuildConf():
+	print('Rebuilding haproxy config')
+	domains = os.listdir(base_dir + 'domains')
+	with open(base_dir + 'haproxy.cfg.new', 'w+') as new_conf:
+		with open(base_dir + 'header.cfg', 'r') as header_file:
+			header = header_file.read()
+			new_conf.write(header)
+		new_conf.write('\n')
+		### ACL RULES pending
+		new_conf.write('frontend iiit.ac.in\n')
+		new_conf.write('    bind *:80\n')
+		new_conf.write('    bind *:443 ssl crt /etc/pki/tls/private/cert.pem\n')
+		new_conf.write('    redirect scheme https code 301 if !{ ssl_fc }\n\n')
+		for domain in domains:
+			new_conf.write('    acl host_' + domain + ' hdr(host) ' + domain + '\n')
+
+		for domain in domains:
+			new_conf.write('    use_backend ' + domain + ' if host_' + domain + '\n')
+
+		new_conf.write('\n')
+		for domain in domains:
+			with open(base_dir + 'domains/' + domain, 'r') as domain_conf:
+				ips = domain_conf.read()
+				ips = ips.split('\n')
+				new_conf.write('backend ' + domain + '\n')
+				new_conf.write('    balance roundrobin\n')
+				counter = 0
+				for ip in ips:
+					if len(ip) > 0:
+						new_conf.write('    server ' + domain + '_' + str(counter) + ' ' + ip)
+						counter += 1
+						if ':443' in ip:
+							new_conf.write(' ssl verify none\n')
+						else:
+							new_conf.write(' check\n')
+				new_conf.write('\n')
+
+		print('Built new config file')
+		os.rename(base_dir + 'haproxy.cfg', base_dir + 'haproxy.cfg.bak')
+		os.rename(base_dir + 'haproxy.cfg.new', base_dir + 'haproxy.cfg')
+		
+		os.system('systemctl reload-or-restart haproxy')
+		print(GREEN + 'Loaded new settings' + ENDC)
+
+def inputParser(args):
+	if len(args) < 3:
+		throwError()
+
+	cmd = args[1]
+	option = args[2]
+
+	if cmd == 'domain':
+		if option == 'add':
+			addDomain(args[3], args[4], args[5:])
+		elif option == 'del':
+			destroyDomain(args[3])
+		elif option == 'list':
+			listDomains()
+		else:
+			msg = 'Usage:'+ GREEN +' haconf' + ENDC + ' domain add '+ BLUE + 'example.iiit.ac.in '
+			msg += ORANGE + '<port> ' + BLUE + '10.4.255.1 10.4.265.1\n' + ENDC
+			msg += '      '+ GREEN +' haconf' + ENDC + ' domain del '+ BLUE + 'example.iiit.ac.in\n' + ENDC
+			msg += '      '+ GREEN +' haconf' + ENDC + ' domain list'
+			throwError(msg)
+
+	elif cmd == 'acl':
+		if option == 'add':
+			pass
+		elif option == 'del':
+			pass
+		elif option == 'list':
+			pass
+		else:
+			pass
+	else:
+		throwError()
+
+if __name__ == '__main__':
+	inputParser(sys.argv)
