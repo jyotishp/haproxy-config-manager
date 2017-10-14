@@ -3,6 +3,7 @@ HAProxy uses a single configuration file which makes it too difficult to manage 
 
 ## Initial Setup
 Clone the repository
+
 ```git clone https://github.com/jyotishp/haproxy-config-generator.git```
 
 Modify the `header.cfg` file to include all your required defaults. Make sure to change the path to SSL certificate file to the right one.
@@ -10,6 +11,7 @@ Modify the `header.cfg` file to include all your required defaults. Make sure to
 Make sure there is some file (at least an empty one) with the name `haproxy.cfg` in the `conf.d` directory.
 
 Create a symbolic link of `haproxy.cfg` to `/etc/haproxy/haproxy.cfg`
+
 ```sudo ln -s `pwd`/conf.d/haproxy.cfg /etc/haproxy/haproxy.cfg```
 
 ### Optional
@@ -21,11 +23,14 @@ You can also consider adding `haconf` to `/usr/bin` or `/bin` for ease of use. B
 ### Managing Domains
 #### Adding a domain
 ```haconf domain add <domain> <port_number> <list_of_space_seperated_IPs>```
+
 For example, if you want to add example.iiit.ac.in pointing to 127.0.0.1 listening on port 80
 ```haconf domain add example.iiit.ac.in 80 127.0.0.1```
 
+
 #### Deleting a domain
 ```haconf domain del <domain>```
+
 
 #### Listing loaded domains
 ```haconf domain list```
