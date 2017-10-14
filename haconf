@@ -87,8 +87,13 @@ def rebuildConf():
 
 		for domain in domains:
 			new_conf.write('    use_backend ' + domain + ' if host_' + domain + '\n')
+		
+		new_conf.write('default_backend local\n\n')
 
-		new_conf.write('\n')
+		new_conf.write('backend local\n')
+		new_conf.write('    balance roundrobin\n')
+		new_conf.write('    server local_1 127.0.0.1:80 check\n\n')
+
 		for domain in domains:
 			with open(base_dir + 'domains/' + domain, 'r') as domain_conf:
 				ips = domain_conf.read()
